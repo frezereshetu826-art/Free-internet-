@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>የሞባይል አስተማማኝ ላይቭ ማጋሪያ</title>
-    <!-- የጉግል ኔትወርክ ላይብረሪዎች (Firebase) -->
-    <script src="https://gstatic.com"></script>
-    <script src="https://gstatic.com"></script>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 20px; background: #f0f2f5; text-align: center; }
         .box { background: white; padding: 20px; border-radius: 10px; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -23,7 +20,6 @@
     <h2>የሞባይል ላይቭ ማጋሪያ</h2>
     <div id="status">ለመገናኘት ዝግጁ ነው!</div>
     
-    <!-- የግንኙነት ክፍል መፍጠሪያ -->
     <input type="text" id="room-input" placeholder="ባለ 5 አሃዝ መለያ ቁጥር ይፍጠሩ (ምሳሌ፡ 55555)">
     
     <button id="start-btn">1. ካሜራህን አጋራ (Sender)</button>
@@ -32,97 +28,105 @@
     <video id="view-video" autoplay playsinline muted></video>
 </div>
 
+<!-- ስክሪፕቶቹ እዚህ ጋር እንዲጫኑ ማድረግ ችግሩን ይፈታል -->
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+
 <script>
-    // ማንኛውንም ስህተት በስክሪኑ ላይ ፖፕ-አፕ አድርጎ የሚያሳይ
+    // ስህተት መያዣ ኮድ
     window.onerror = function(msg, url, linenumber) {
         alert('ስህተት: ' + msg + '\nበመስመር: ' + linenumber);
         return false;
     };
 
-    // ፍጹም ነፃ እና በኢትዮጵያ ውስጥ የሚሰራው የጉግል ማገናኛ ዳታቤዝ
-    const firebaseConfig = {
-        databaseURL: "https://firebaseio.com"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    // ላይብረሪው መጫኑን ማረጋገጫ
+    if (typeof firebase === 'undefined') {
+        alert("የጉግል ሲስተም አልተጫነም፤ እባክዎ ገጹን Refresh ያድርጉት ወይም ኢንተርኔትዎን ያረጋግጡ!");
+    } else {
+        // የጉግል ማገናኛ ዳታቤዝ ማዋቀሪያ
+        const firebaseConfig = {
+            databaseURL: "https://firebaseio.com"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-    const configuration = { iceServers: [{ urls: "stun:://google.com" }] };
-    let pc = new RTCPeerConnection(configuration);
-    let localStream;
-    let roomRef;
+        const configuration = { iceServers: [{ urls: "stun:://google.com" }] };
+        let pc = new RTCPeerConnection(configuration);
+        let localStream;
+        let roomRef;
 
-    // 1. ካሜራ አጋሪው (Sender)
-    document.getElementById("start-btn").addEventListener("click", async () => {
-        const roomId = document.getElementById("room-input").value.trim();
-        if(!roomId) return alert("እባክዎ መጀመሪያ ባለ 5 አሃዝ መለያ ቁጥር ያስገቡ!");
-        
-        roomRef = db.ref('rooms/' + roomId);
-        document.getElementById("status").innerText = "የስልክ ካሜራ ፈቃድ በመጠየቅ ላይ...";
+        // 1. ካሜራ አጋሪው (Sender)
+        document.getElementById("start-btn").addEventListener("click", async () => {
+            const roomId = document.getElementById("room-input").value.trim();
+            if(!roomId) return alert("እባክዎ መጀመሪያ ባለ 5 አሃዝ መለያ ቁጥር ያስገቡ!");
+            
+            roomRef = db.ref('rooms/' + roomId);
+            document.getElementById("status").innerText = "የስልክ ካሜራ ፈቃድ በመጠየቅ ላይ...";
 
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-            document.getElementById("view-video").srcObject = localStream;
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+                document.getElementById("view-video").srcObject = localStream;
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) roomRef.child('senderCandidates').push(event.candidate.toJSON());
+                };
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                await roomRef.set({ offer: { type: offer.type, sdp: offer.sdp } });
+                
+                document.getElementById("status").innerText = "እየተጋራ ነው! ለጓደኛዎ መለያ ቁጥሩን ይንገሩት።";
+
+                roomRef.on('value', async (snapshot) => {
+                    const data = snapshot.val();
+                    if (data && data.answer && !pc.currentRemoteDescription) {
+                        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    }
+                });
+
+                roomRef.child('receiverCandidates').on('child_added', snapshot => {
+                    pc.addIceCandidate(new RTCIceCandidate(snapshot.val()));
+                });
+
+            } catch (err) {
+                alert("ካሜራ መክፈት አልተቻለም፡ " + err.message);
+            }
+        });
+
+        // 2. ተመልካቹ (Receiver)
+        document.getElementById("join-btn").addEventListener("click", async () => {
+            const roomId = document.getElementById("room-input").value.trim();
+            if(!roomId) return alert("እባክዎ መጀመሪያ የጓደኛዎን መለያ ቁጥር ያስገቡ!");
+
+            roomRef = db.ref('rooms/' + roomId);
+            document.getElementById("status").innerText = "ምስል ለመቀበል በመገናኘት ላይ...";
 
             pc.onicecandidate = (event) => {
-                if (event.candidate) roomRef.child('senderCandidates').push(event.candidate.toJSON());
+                if (event.candidate) roomRef.child('receiverCandidates').push(event.candidate.toJSON());
             };
 
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            await roomRef.set({ offer: { type: offer.type, sdp: offer.sdp } });
-            
-            document.getElementById("status").innerText = "እየተጋራ ነው! ለጓደኛዎ መለያ ቁጥሩን ይንገሩት።";
+            pc.ontrack = (event) => {
+                document.getElementById("view-video").srcObject = event.streams;
+                document.getElementById("status").innerText = "ምስል በተሳካ ሁኔታ እየመጣ ነው!";
+            };
 
-            // ከተቀባዩ ምላሽ ሲመጣ በራሱ ያገናኛል
-            roomRef.on('value', async (snapshot) => {
-                const data = snapshot.val();
-                if (data && data.answer && !pc.currentRemoteDescription) {
-                    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                }
-            });
-
-            roomRef.child('receiverCandidates').on('child_added', snapshot => {
+            roomRef.child('senderCandidates').on('child_added', snapshot => {
                 pc.addIceCandidate(new RTCIceCandidate(snapshot.val()));
             });
 
-        } catch (err) {
-            alert("ካሜራ መክፈት አልተቻለም፡ " + err.message);
-        }
-    });
-
-    // 2. ተመልካቹ (Receiver)
-    document.getElementById("join-btn").addEventListener("click", async () => {
-        const roomId = document.getElementById("room-input").value.trim();
-        if(!roomId) return alert("እባክዎ መጀመሪያ የጓደኛዎን መለያ ቁጥር ያስገቡ!");
-
-        roomRef = db.ref('rooms/' + roomId);
-        document.getElementById("status").innerText = "ምስል ለመቀበል በመገናኘት ላይ...";
-
-        pc.onicecandidate = (event) => {
-            if (event.candidate) roomRef.child('receiverCandidates').push(event.candidate.toJSON());
-        };
-
-        pc.ontrack = (event) => {
-            document.getElementById("view-video").srcObject = event.streams[0];
-            document.getElementById("status").innerText = "ምስል በተሳካ ሁኔታ እየመጣ ነው!";
-        };
-
-        roomRef.child('senderCandidates').on('child_added', snapshot => {
-            pc.addIceCandidate(new RTCIceCandidate(snapshot.val()));
+            const snapshot = await roomRef.once('value');
+            const data = snapshot.val();
+            if (data && data.offer) {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                await roomRef.update({ answer: { type: answer.type, sdp: answer.sdp } });
+            } else {
+                alert("ይህ መለያ ቁጥር አልተገኘም ወይም ስህተት ነው!");
+            }
         });
-
-        const snapshot = await roomRef.once('value');
-        const data = snapshot.val();
-        if (data && data.offer) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            await roomRef.update({ answer: { type: answer.type, sdp: answer.sdp } });
-        } else {
-            alert("ይህ መለያ ቁጥር አልተገኘም ወይም ስህተት ነው!");
-        }
-    });
+    }
 </script>
 
 </body>
