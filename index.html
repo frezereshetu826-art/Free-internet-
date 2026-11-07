@@ -26,27 +26,20 @@
 </div>
 
 <script>
-    // ማንኛውንም ስህተት በስክሪኑ ላይ ፖፕ-አፕ አድርጎ ያሳያል
-    window.onerror = function(msg, url, linenumber) {
-        alert('የቴክኒክ ስህተት: ' + msg + '\nበመስመር ቁጥር: ' + linenumber);
-        return false;
-    };
-
-    // ሙሉ በሙሉ የተስተካከለ እና የሚሰራ የሰርቨር አድራሻ (PieSocket)
-    const serverUrl = 'wss://://piesocket.com';
+    // 1. የሰርቨር ግንኙነት (PieSocket Free Demo)
+    const serverUrl = "wss://://piesocket.com";
     const socket = new WebSocket(serverUrl);
 
-    const configuration = { iceServers: [{ urls: 'stun:://google.com' }] };
+    // 2. የWebRTC ማዋቀሪያ
+    const configuration = { iceServers: [{ urls: "stun:://google.com" }] };
     const pc = new RTCPeerConnection(configuration);
     let localStream;
 
+    // ሰርቨሩ ሲገናኝ
     socket.onopen = () => {
-        document.getElementById('status').innerText = "ግንኙነት ተመስርቷል! ለመጠቀም ዝግጁ ነው።";
-        document.getElementById('status').style.color = "green";
-    };
-
-    socket.onerror = (error) => {
-        alert("የሰርቨር ግንኙነት ስህተት አጋጥሟል! እባክዎ ኢንተርኔትዎን ያረጋግጡ።");
+        const statusDiv = document.getElementById("status");
+        statusDiv.innerText = "ግንኙነት ተመስርቷል! ለመጠቀም ዝግጁ ነው።";
+        statusDiv.style.color = "green";
     };
 
     socket.onmessage = async (message) => {
@@ -74,31 +67,31 @@
     };
 
     pc.ontrack = (event) => {
-        document.getElementById('view-video').srcObject = event.streams[0];
-        document.getElementById('status').innerText = "ምስል በተሳካ ሁኔታ እየመጣ ነው!";
+        document.getElementById("view-video").srcObject = event.streams[0];
+        document.getElementById("status").innerText = "ምስል በተሳካ ሁኔታ እየመጣ ነው!";
     };
 
-    // 1. ላኪው (Sender) ሲጫነው
-    document.getElementById('start-btn').addEventListener('click', async () => {
+    // 1. ካሜራ አጋሪ (Sender)
+    document.getElementById("start-btn").addEventListener("click", async () => {
         try {
-            document.getElementById('status').innerText = "የስልክ ካሜራ ፈቃድ በመጠየቅ ላይ...";
+            document.getElementById("status").innerText = "የስልክ ካሜራ ፈቃድ በመጠየቅ ላይ...";
             localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-            document.getElementById('view-video').srcObject = localStream;
+            document.getElementById("view-video").srcObject = localStream;
             
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             socket.send(JSON.stringify({ offer: pc.localDescription }));
-            document.getElementById('status').innerText = "የእርስዎ ካሜራ እየተጋራ ነው...";
+            document.getElementById("status").innerText = "የእርስዎ ካሜራ እየተጋራ ነው...";
         } catch (err) {
             alert("ካሜራ መክፈት አልተቻለም፡ " + err.message);
         }
     });
 
-    // 2. ተቀባዩ (Receiver) ሲጫነው
-    document.getElementById('join-btn').addEventListener('click', () => {
-        document.getElementById('status').innerText = "ምስል ለመቀበል በመጠባበቅ ላይ...";
+    // 2. ተመልካች (Receiver)
+    document.getElementById("join-btn").addEventListener("click", () => {
+        document.getElementById("status").innerText = "ምስል ለመቀበል በመጠባበቅ ላይ...";
     });
 </script>
 
