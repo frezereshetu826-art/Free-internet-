@@ -4,114 +4,126 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>የሞባይል ላይቭ ካሜራ ማጋሪያ</title>
+    <!-- የጉግል ኔትወርክ ላይብረሪዎች (Firebase) -->
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 20px; background: #f0f2f5; text-align: center; }
-        .box { background: white; padding: 20px; border-radius: 10px; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: left; }
-        h2 { text-align: center; color: #007bff; }
+        .box { background: white; padding: 20px; border-radius: 10px; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; margin: 5px 0; font-weight: bold; }
         button:hover { background: #0056b3; }
-        textarea { width: 94%; height: 80px; font-size: 12px; margin: 5px 0; padding: 8px; border-radius: 4px; border: 1px solid #ccc; word-break: break-all; }
-        #status { font-style: italic; color: green; font-weight: bold; text-align: center; margin: 10px 0; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; text-align: center; }
         video { width: 100%; background: black; border-radius: 8px; margin-top: 15px; min-height: 200px; }
+        #status { font-style: italic; color: green; font-weight: bold; margin: 10px 0; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>የሞባይል ካሜራ ማጋሪያ (Pure WebRTC)</h2>
-    <div id="status">ለመጠቀም ዝግጁ ነው!</div>
+    <h2>የሞባይል ካሜራ ማጋሪያ</h2>
+    <div id="status">ለመገናኘት ዝግጁ ነው!</div>
     
-    <!-- ደረጃ 1 -->
-    <div style="border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-bottom: 10px;">
-        <p><strong>ደረጃ 1 (Sender):</strong> መጀመሪያ ይህንን ይጫኑ (ካሜራ ይጠይቃል)፡</p>
-        <button id="start-btn">1. ካሜራህን ክፈትና ኮድ ፍጠር</button>
-        <p>የእርስዎ የጥሪ ኮድ (ይህንን ለጓደኛዎ ይላኩ)፡</p>
-        <textarea id="offer-text" readonly placeholder="ኮዱ እዚህ ይፈጠራል..."></textarea>
-    </div>
-
-    <!-- ደረጃ 2 -->
-    <div style="border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-bottom: 10px;">
-        <p><strong>ደረጃ 2 (Receiver):</strong> ከጓደኛዎ የተላከውን ኮድ እዚህ ያስገቡ፡</p>
-        <textarea id="input-offer" placeholder="የጓደኛዎን የጥሪ ኮድ እዚህ ይለጥፉ..."></textarea>
-        <button id="join-btn" style="background: #28a745;">2. የጥሪ ኮዱን ተቀበልና የምላሽ ኮድ ስራ</button>
-        <p>የእርስዎ የምላሽ ኮድ (ይህንን ለላኪው መልሰው ይላኩ)፡</p>
-        <textarea id="answer-text" readonly placeholder="የምላሽ ኮድ እዚህ ይፈጠራል..."></textarea>
-    </div>
-
-    <!-- ደረጃ 3 -->
-    <div>
-        <p><strong>ደረጃ 3 (Sender):</strong> ከጓደኛዎ የተላከውን ኮድ እዚህ ያስገቡ፡</p>
-        <textarea id="input-answer" placeholder="የምላሽ ኮዱን እዚህ ይለጥፉ..."></textarea>
-        <button id="finalize-btn" style="background: #ffc107; color: black;">3. ግንኙነቱን አጠናቅቅ</button>
-    </div>
-
-    <!-- ምስል ማሳያ ቪዲዮ -->
-    <video id="view-video" autoplay playsinline muted></video>
+    <!-- የግንኙነት ክፍል መፍጠሪያ -->
+    <input type="number" id="room-input" placeholder="ባለ 5 አሃዝ መለያ ቁጥር ይፍጠሩ (ምሳሌ፡ 77777)">
+    
+    <button id="start-btn">1. ካሜራህን ክፈትና አጋራ (Sender)</button>
+    <button id="join-btn" style="background: #28a745;">2. የጓደኛህን ካሜራ እይ (Receiver)</button>
+    
+    <video id="view-video" autoplay playsinline muted controls></video>
 </div>
 
 <script>
-    // ምንም የውጭ ሰርቨር የማይፈልግ የWebRTC መዋቅር
-    const pc = new RTCPeerConnection({ iceServers: [] });
-    let localStream;
+    // የጉግል ማገናኛ ዳታቤዝ (በኢትዮጵያ ውስጥ ይሰራል)
+    const firebaseConfig = { databaseURL: "https://firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    // ደረጃ 1፡ ላኪው ሲጫነው (የካሜራ ፈቃድ ይጠይቃል)
+    // በኢትዮጵያ የማይታገዱ የዓለም አቀፍ STUN ሰርቨሮች
+    const configuration = {
+        iceServers: [
+            { urls: "stun:://mozilla.com" },
+            { urls: "stun:stun.stunprotocol.org:3478" },
+            { urls: "stun:stun.mit.edu:3478" }
+        ]
+    };
+    
+    let pc = new RTCPeerConnection(configuration);
+    let localStream;
+    let roomRef;
+
+    // 1. ካሜራ አጋሪው (Sender)
     document.getElementById("start-btn").addEventListener("click", async () => {
+        const roomId = document.getElementById("room-input").value.trim();
+        if(!roomId) return alert("እባክዎ መጀመሪያ ባለ 5 አሃዝ መለያ ቁጥር ያስገቡ!");
+        
+        roomRef = db.ref('rooms/' + roomId);
         document.getElementById("status").innerText = "የስልክ ካሜራ ፈቃድ በመጠየቅ ላይ...";
+
         try {
-            // እውነተኛ የካሜራ መክፈቻ ትዕዛዝ
+            // ካሜራውን መክፈት
             localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
             document.getElementById("view-video").srcObject = localStream;
-            
-            // የቪዲዮ ዳታውን ወደ ግንኙነቱ መጫን
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) roomRef.child('senderCandidates').push(event.candidate.toJSON());
+            };
 
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
+            await roomRef.set({ offer: { type: offer.type, sdp: offer.sdp } });
             
-            // ኮዱን ወዲያውኑ በሳጥኑ ውስጥ ማውጣት
-            document.getElementById("offer-text").value = btoa(JSON.stringify(pc.localDescription));
-            document.getElementById("status").innerText = "ኮዱ ተዘጋጅቷል! ኮፒ አድርገው ለጓደኛዎ ይላኩ።";
+            document.getElementById("status").innerText = "እየተጋራ ነው! ለጓደኛዎ ቁጥሩን ይንገሩት።";
+
+            // ከተቀባዩ ምላሽ ሲመጣ በራሱ ያገናኛል (ምንም ኮፒ ፔስት የለም)
+            roomRef.on('value', async (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.answer && !pc.currentRemoteDescription) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    document.getElementById("status").innerText = "ግንኙነቱ ተሳክቷል!";
+                }
+            });
+
+            roomRef.child('receiverCandidates').on('child_added', snapshot => {
+                pc.addIceCandidate(new RTCIceCandidate(snapshot.val()));
+            });
+
         } catch (err) {
-            alert("ካሜራ መክፈት አልተቻለም! እባክዎ ለብሮውዘሩ የካሜራ ፈቃድ ይስጡ። ስህተት፡ " + err.message);
-            document.getElementById("status").innerText = "የፈቃድ ስህተት!";
+            alert("ካሜራ መክፈት አልተቻለም፡ " + err.message);
         }
     });
 
-    // ደረጃ 2፡ ተቀባዩ ሲጫነው
+    // 2. ተመልካቹ (Receiver)
     document.getElementById("join-btn").addEventListener("click", async () => {
-        const offerRaw = document.getElementById("input-offer").value.trim();
-        if (!offerRaw) return alert("እባክዎ መጀመሪያ የጥሪ ኮዱን ያስገቡ!");
+        const roomId = document.getElementById("room-input").value.trim();
+        if(!roomId) return alert("እባክዎ መጀመሪያ የጓደኛዎን መለያ ቁጥር ያስገቡ!");
 
-        try {
-            const offerDesc = new RTCSessionDescription(JSON.parse(atob(offerRaw)));
-            await pc.setRemoteDescription(offerDesc);
+        roomRef = db.ref('rooms/' + roomId);
+        document.getElementById("status").innerText = "ምስል ለመቀበል በመገናኘት ላይ...";
 
+        pc.onicecandidate = (event) => {
+            if (event.candidate) roomRef.child('receiverCandidates').push(event.candidate.toJSON());
+        };
+
+        // የሌላውን ሰው ካሜራ ምስል መቀበያ
+        pc.ontrack = (event) => {
+            document.getElementById("view-video").srcObject = event.streams[0];
+            document.getElementById("status").innerText = "ምስል በተሳካ ሁኔታ እየመጣ ነው!";
+        };
+
+        roomRef.child('senderCandidates').on('child_added', snapshot => {
+            pc.addIceCandidate(new RTCIceCandidate(snapshot.val()));
+        });
+
+        const snapshot = await roomRef.once('value');
+        const data = snapshot.val();
+        if (data && data.offer) {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-
-            document.getElementById("answer-text").value = btoa(JSON.stringify(pc.localDescription));
-            document.getElementById("status").innerText = "የምላሽ ኮዱ ተዘጋጅቷል! ለላኪው መልሰው ይላኩ።";
-        } catch (e) {
-            alert("የተሳሳተ ኮድ አስግበዋል!");
-        }
-    });
-
-    // የሌላው ሰው ምስል ሲመጣ ማሳያ
-    pc.ontrack = (event) => {
-        document.getElementById("view-video").srcObject = event.streams[0];
-        document.getElementById("status").innerText = "ምስል በተሳካ ሁኔታ እየመጣ ነው!";
-    };
-
-    // ደረጃ 3፡ ላኪው ሲጫነው
-    document.getElementById("finalize-btn").addEventListener("click", async () => {
-        const answerRaw = document.getElementById("input-answer").value.trim();
-        if (!answerRaw) return alert("እባክዎ የምላሽ ኮዱን ያስገቡ!");
-
-        try {
-            const answerDesc = new RTCSessionDescription(JSON.parse(atob(answerRaw)));
-            await pc.setRemoteDescription(answerDesc);
-        } catch (e) {
-            alert("የተሳሳተ የምላሽ ኮድ!");
+            await roomRef.update({ answer: { type: answer.type, sdp: answer.sdp } });
+        } else {
+            alert("ይህ መለያ ቁጥር አልተገኘም! እባክዎ ላኪው መጀመሪያ ማጋራቱን ያረጋግጡ።");
         }
     });
 </script>
