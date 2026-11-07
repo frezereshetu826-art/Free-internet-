@@ -19,7 +19,7 @@
 
 <div class="box">
     <h2>የሞባይል ላይቭ ማጋሪያ (Pure WebRTC)</h2>
-    <div id="status">ለመጠቀም ዝግጁ ነው! (ምንም የውጭ ላይብረሪ የለበትም)</div>
+    <div id="status">ለመጠቀም ዝግጁ ነው! (የሰርቨር አማራጮች ተስተካክለዋል)</div>
     
     <!-- ክፍል 1 -->
     <div style="border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-bottom: 10px;">
@@ -49,8 +49,19 @@
 </div>
 
 <script>
-    // የWebRTC ማዋቀሪያ (የጉግል ነጻ መተላለፊያ አድራሻ ብቻ)
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:://google.com" }] });
+    // በኢትዮጵያ ውስጥ በምንም ዓይነት ሁኔታ የማይታገዱ 5 የተለያዩ የዓለም አቀፍ STUN ሰርቨሮች
+    const configuration = {
+        iceServers: [
+            { urls: "stun:://google.com" },
+            { urls: "stun:://mozilla.com" },
+            { urls: "stun:stun.stunprotocol.org:3478" },
+            { urls: "stun:stun.xs4all.nl" },
+            { urls: "stun:stun.mit.edu:3478" }
+        ],
+        iceCandidatePoolSize: 10
+    };
+
+    const pc = new RTCPeerConnection(configuration);
     let localStream;
 
     // ደረጃ 1፡ ላኪው ሲጫነው
@@ -61,15 +72,25 @@
             document.getElementById("view-video").srcObject = localStream;
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
+            // ኮዱ ሙሉ በሙሉ ተሰብስቦ እስኪያልቅ ድረስ በየደረጃው ጽሑፉን ያወጣዋል
             pc.onicecandidate = (event) => {
+                document.getElementById("offer-text").value = btoa(JSON.stringify(pc.localDescription));
+                document.getElementById("status").innerText = "ኮዱ በከፊል ተዘጋጅቷል! ሙሉ በሙሉ እስኪያልቅ ሰከንዶች ይጠብቁ...";
                 if (!event.candidate) {
-                    document.getElementById("offer-text").value = btoa(JSON.stringify(pc.localDescription));
-                    document.getElementById("status").innerText = "ኮዱ ተዘጋጅቷል! ኮፒ አድርገው ለጓደኛዎ ይላኩ።";
+                    document.getElementById("status").innerText = "ኮዱ 100% ተጠናቋል! ኮፒ አድርገው ለጓደኛዎ ይላኩ።";
                 }
             };
 
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
+            
+            // ሰርቨሩ ቢዘገይ እንኳ ወዲያውኑ የመጀመሪያውን ኮድ በሳጥኑ ውስጥ ያሳያል
+            setTimeout(() => {
+                if (pc.localDescription) {
+                    document.getElementById("offer-text").value = btoa(JSON.stringify(pc.localDescription));
+                }
+            }, 500);
+
         } catch (err) {
             alert("ካሜራ መክፈት አልተቻለም፡ " + err.message);
         }
@@ -85,20 +106,25 @@
             await pc.setRemoteDescription(offerDesc);
 
             pc.onicecandidate = (event) => {
+                document.getElementById("answer-text").value = btoa(JSON.stringify(pc.localDescription));
                 if (!event.candidate) {
-                    document.getElementById("answer-text").value = btoa(JSON.stringify(pc.localDescription));
-                    document.getElementById("status").innerText = "የምላሽ ኮዱ ተዘጋጅቷል! ኮፒ አድርገው መልሰው ይላኩ።";
+                    document.getElementById("status").innerText = "የምላሽ ኮዱ 100% ተጠናቋል! ኮፒ አድርገው መልሰው ይላኩ።";
                 }
             };
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+
+            setTimeout(() => {
+                if (pc.localDescription) {
+                    document.getElementById("answer-text").value = btoa(JSON.stringify(pc.localDescription));
+                }
+            }, 500);
         } catch (e) {
             alert("የተሳሳተ ኮድ አስግበዋል!");
         }
     });
 
-    // ምስሉ ሲመጣ ማሳያ
     pc.ontrack = (event) => {
         document.getElementById("view-video").srcObject = event.streams[0];
         document.getElementById("status").innerText = "ምስል በተሳካ ሁኔታ እየመጣ ነው!";
