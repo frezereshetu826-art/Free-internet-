@@ -3,130 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>የሞባይል አስተማማኝ ጽሑፍ ማጋሪያ</title>
+    <title>የሞባይል አስተማማኝ ማጋሪያ</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 20px; background: #f0f2f5; text-align: center; }
-        .box { background: white; padding: 20px; border-radius: 10px; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: left; }
-        h2 { text-align: center; color: #007bff; }
-        button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; margin: 5px 0; font-weight: bold; }
+        .box { background: white; padding: 20px; border-radius: 10px; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; }
+        h2 { color: #007bff; }
+        button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; margin: 10px 0; font-weight: bold; }
         button:hover { background: #0056b3; }
-        textarea { width: 94%; height: 80px; font-size: 12px; margin: 5px 0; padding: 8px; border-radius: 4px; border: 1px solid #ccc; word-break: break-all; }
-        #status { font-style: italic; color: green; font-weight: bold; text-align: center; margin: 10px 0; }
-        .chat-box { display: none; background: #e9ecef; padding: 10px; border-radius: 5px; margin-top: 15px; }
+        input { width: 85%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 18px; text-align: center; font-weight: bold; }
+        #status { font-style: italic; color: #555; margin: 10px 0; font-weight: bold; }
+        #room-display { font-size: 24px; color: #dc3545; font-weight: bold; background: #f8d7da; padding: 10px; border-radius: 5px; display: none; margin: 10px 0; }
+        .chat-area { display: none; background: #e9ecef; padding: 15px; border-radius: 5px; margin-top: 15px; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>የሞባይል ማጋሪያ (Pure WebRTC Data)</h2>
-    <div id="status">ለመጠቀም ዝግጁ ነው! (ካሜራ አይጠይቅም)</div>
+    <h2>የሞባይል ፈጣን ማጋሪያ</h2>
+    <div id="status">የግንኙነት መስመር በመፈለግ ላይ...</div>
     
-    <!-- ደረጃ 1 -->
-    <div style="border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-bottom: 10px;">
-        <p><strong>ደረጃ 1 (Sender):</strong> መጀመሪያ ይህንን ይጫኑ፡</p>
-        <button id="start-btn">የማስተላለፊያ ኮድ ፍጠር</button>
-        <p>የእርስዎ የጥሪ ኮድ (ይህንን ሙሉ ኮፒ አድርገው ለጓደኛዎ ይላኩ)፡</p>
-        <textarea id="offer-text" readonly placeholder="ኮዱ እዚህ ይፈጠራል..."></textarea>
+    <!-- ደረጃ 1፡ ላኪው ኮድ የሚያመነጭበት -->
+    <div style="border-bottom: 1px dashed #ccc; padding-bottom: 15px; margin-bottom: 15px;">
+        <p><strong>ደረጃ 1 (Sender):</strong> መለያ ኮድ ለመፍጠር ይህንን ይጫኑ፡</p>
+        <button id="create-btn">የመለያ ቁጥር አውጣ</button>
+        <div id="room-display">ባለ 6 አሃዝ ኮድ እዚህ ይወጣል</div>
     </div>
 
-    <!-- ደረጃ 2 -->
-    <div style="border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-bottom: 10px;">
-        <p><strong>ደረጃ 2 (Receiver):</strong> ከላይ የተላከለትን ኮድ እዚህ ያስገባ፡</p>
-        <textarea id="input-offer" placeholder="የጓደኛዎን የጥሪ ኮድ እዚህ ይለጥፉ..."></textarea>
-        <button id="join-btn" style="background: #28a745;">ኮዱን ተቀበልና የምላሽ ኮድ ስራ</button>
-        <p>የእርስዎ የምላሽ ኮድ (ይህንን ለላኪው መልሰው ይላኩ)፡</p>
-        <textarea id="answer-text" readonly placeholder="የምላሽ ኮድ እዚህ ይፈጠራል..."></textarea>
-    </div>
-
-    <!-- ደረጃ 3 -->
+    <!-- ደረጃ 2፡ ተቀባዩ ኮድ የሚያስገባበት -->
     <div>
-        <p><strong>ደረጃ 3 (Sender):</strong> ከጓደኛዎ የተላከውን ኮድ እዚህ ያስገባ፡</p>
-        <textarea id="input-answer" placeholder="የምላሽ ኮዱን እዚህ ይለጥፉ..."></textarea>
-        <button id="finalize-btn" style="background: #ffc107; color: black;">ግንኙነቱን አጠናቅቅ</button>
+        <p><strong>ደረጃ 2 (Receiver):</strong> ከጓደኛዎ የተላከውን መለያ ቁጥር እዚህ ያስገቡ፡</p>
+        <input type="number" id="room-input" placeholder="ባለ 6 አሃዝ ቁጥሩን እዚህ ይጻፉ">
+        <button id="join-btn" style="background: #28a745;">ከጓደኛህ ጋር ተገናኝ</button>
     </div>
 
     <!-- ግንኙነቱ ሲሳካ የሚከፈት ሳጥን -->
-    <div class="chat-box" id="chat-box">
+    <div class="chat-area" id="chat-area">
         <p style="color: green; font-weight: bold;">🎉 ግንኙነቱ በተሳካ ሁኔታ ተመስርቷል!</p>
-        <input type="text" id="msg-input" placeholder="የሚላክ ጽሑፍ እዚህ ይጻፉ" style="width: 70%; padding: 8px;">
-        <button id="send-btn" style="width: 25%; padding: 8px;">ላክ</button>
-        <div id="messages" style="margin-top: 10px; font-weight: bold; text-align: center;"></div>
+        <input type="text" id="msg-input" placeholder="የሚላክ መልዕክት ይጻፉ" style="width: 70%; padding: 8px;">
+        <button id="send-btn" style="width: 25%; padding: 8px; background: #17a2b8;">ላክ</button>
+        <div id="messages" style="margin-top: 10px; font-weight: bold; color: #333;"></div>
     </div>
 </div>
 
 <script>
-    // ምንም የውጭ ላይብረሪ ወይም ካሜራ የማይፈልግ የብሮውዘር ውስጣዊ WebRTC ማዋቀሪያ
-    const pc = new RTCPeerConnection({ iceServers: [] });
-    let dataChannel;
+    // በምንም ዓይነት ሁኔታ የማይዘጋ እና ወዲያውኑ መልዕክት የሚያስተላልፍ ክፍት የዌብሶኬት ሰርቨር
+    const socket = new WebSocket("wss://://piesocket.com");
+    let generatedRoomId = null;
 
-    // ደረጃ 1፡ ላኪው ሲጫነው (ወዲያውኑ ኮድ ያመነጫል)
-    document.getElementById("start-btn").addEventListener("click", async () => {
-        document.getElementById("status").innerText = "ኮድ በመስራት ላይ...";
+    socket.onopen = () => {
+        document.getElementById("status").innerText = "ሲስተሙ ዝግጁ ነው! የመለያ ቁጥር ማውጣት ይችላሉ።";
+        document.getElementById("status").style.color = "green";
+    };
+
+    socket.onerror = () => {
+        document.getElementById("status").innerText = "የመስመር መቆራረጥ አጋጥሟል! እባክዎ ኢንተርኔትዎን ያረጋግጡ።";
+        document.getElementById("status").style.color = "red";
+    };
+
+    // ደረጃ 1፡ ላኪው ሲጫነው (ያለምንም መዘግየት ወዲያውኑ ባለ 6 አሃዝ ኮድ ያመነጫል)
+    document.getElementById("create-btn").addEventListener("click", () => {
+        // የዘፈቀደ ባለ 6 አሃዝ ቁጥር ማመንጫ (ይህ በብሮውዘር ውስጥ ወዲያውኑ ነው የሚሰራው)
+        generatedRoomId = Math.floor(100000 + Math.random() * 900000);
         
-        // የዳታ ቻናል መፍጠር (ካሜራ እንዳይጠይቅ ያደርገዋል)
-        dataChannel = pc.createDataChannel("chat");
-        setupChannelEvents(dataChannel);
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
+        const displayDiv = document.getElementById("room-display");
+        displayDiv.innerText = "የእርስዎ መለያ ቁጥር፡ " + generatedRoomId;
+        displayDiv.style.display = "block";
         
-        // ያለምንም ሰርቨር መዘግየት ወዲያውኑ ኮዱን በሳጥኑ ውስጥ ያወጣዋል
-        document.getElementById("offer-text").value = btoa(JSON.stringify(pc.localDescription));
-        document.getElementById("status").innerText = "ኮዱ ተዘጋጅቷል! ሙሉውን ኮፒ አድርገው ለጓደኛዎ ይላኩ።";
+        document.getElementById("status").innerText = "ቁጥሩን ለጓደኛዎ ይንገሩት። በመጠባበቅ ላይ...";
     });
 
-    // ደረጃ 2፡ ተቀባዩ ሲጫነው (የምላሽ ኮድ ያመነጫል)
-    document.getElementById("join-btn").addEventListener("click", async () => {
-        const offerRaw = document.getElementById("input-offer").value.trim();
-        if (!offerRaw) return alert("እባክዎ መጀመሪያ የጥሪ ኮዱን ያስገቡ!");
+    // ደረጃ 2፡ ተቀባዩ ሲጫነው
+    document.getElementById("join-btn").addEventListener("click", () => {
+        const inputId = document.getElementById("room-input").value.trim();
+        if (!inputId) return alert("እባክዎ መጀመሪያ የጓደኛዎን መለያ ቁጥር ያስገቡ!");
 
-        try {
-            pc.ondatachannel = (event) => {
-                dataChannel = event.channel;
-                setupChannelEvents(dataChannel);
-            };
+        document.getElementById("status").innerText = "ከክፍሉ ጋር በመገናኘት ላይ...";
+        
+        // ወደ ሰርቨሩ የግንኙነት መልዕክት ይልካል
+        socket.send(JSON.stringify({ type: "join", room: inputId }));
+    });
 
-            const offerDesc = new RTCSessionDescription(JSON.parse(atob(offerRaw)));
-            await pc.setRemoteDescription(offerDesc);
-
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-
-            document.getElementById("answer-text").value = btoa(JSON.stringify(pc.localDescription));
-            document.getElementById("status").innerText = "የምላሽ ኮዱ ተዘጋጅቷል! ኮፒ አድርገው መልሰው ይላኩ።";
-        } catch (e) {
-            alert("የተሳሳተ ኮድ አስግበዋል! እባክዎ ሙሉውን ኮድ በትክክል መቅዳትዎን ያረጋግጡ።");
+    // ከሰርቨር መልዕክት ሲመጣ ማስተናገጃ
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        // ላኪው ስልክ ተቀባዩ ሲገናኝ መልዕክት ሲደርሰው
+        if (data.type === "join" && generatedRoomId && data.room == generatedRoomId) {
+            socket.send(JSON.stringify({ type: "connected", room: generatedRoomId }));
+            openChatBox();
         }
-    });
-
-    // ደረጃ 3፡ ላኪው ግንኙነቱን ሲያጠናቅቅ
-    document.getElementById("finalize-btn").addEventListener("click", async () => {
-        const answerRaw = document.getElementById("input-answer").value.trim();
-        if (!answerRaw) return alert("እባክዎ የምላሽ ኮዱን ያስገቡ!");
-
-        try {
-            const answerDesc = new RTCSessionDescription(JSON.parse(atob(answerRaw)));
-            await pc.setRemoteDescription(answerDesc);
-        } catch (e) {
-            alert("የተሳሳተ የምላሽ ኮድ!");
+        
+        // ተቀባዩ ስልክ ግንኙነቱ መጽደቁን ሲያረጋግጥ
+        if (data.type === "connected" && document.getElementById("room-input").value == data.room) {
+            openChatBox();
         }
-    });
 
-    // ግንኙነቱ ሲሳካ መልዕክት ለመላላክ የሚጠቅም
-    function setupChannelEvents(channel) {
-        channel.onopen = () => {
-            document.getElementById("status").innerText = "ሁለቱ ስልኮች ተገናኝተዋል!";
-            document.getElementById("chat-box").style.display = "block";
-        };
-        channel.onmessage = (event) => {
-            document.getElementById("messages").innerText = "ከጓደኛዎ የመጣ፡ " + event.data;
-        };
+        // የጽሑፍ መልዕክት ሲለዋወጡ
+        if (data.type === "msg" && (data.room == generatedRoomId || data.room == document.getElementById("room-input").value)) {
+            document.getElementById("messages").innerText = "የመጣ መልዕክት፡ " + data.text;
+        }
+    };
+
+    function openChatBox() {
+        document.getElementById("status").innerText = "ግንኙነቱ ተሳክቷል!";
+        document.getElementById("chat-area").style.display = "block";
     }
 
+    // መልዕክት መላኪያ ቁልፍ
     document.getElementById("send-btn").addEventListener("click", () => {
         const msg = document.getElementById("msg-input").value;
-        if (dataChannel && dataChannel.readyState === "open") {
-            dataChannel.send(msg);
+        const currentRoom = generatedRoomId || document.getElementById("room-input").value;
+        
+        if (msg) {
+            socket.send(JSON.stringify({ type: "msg", room: currentRoom, text: msg }));
             document.getElementById("messages").innerText = "እርስዎ የላኩት፡ " + msg;
             document.getElementById("msg-input").value = "";
         }
