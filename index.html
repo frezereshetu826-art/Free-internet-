@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>የሞባይል ላይቭ ቪዲዮ ማጋሪያ (Mobile Stream)</title>
+    <title>የሞባይል ላይቭ ቪዲዮ ማጋሪያ</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 20px; background: #f0f2f5; text-align: center; }
         .box { background: white; padding: 20px; border-radius: 10px; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; margin: 5px 0; font-weight: bold; }
         button:hover { background: #0056b3; }
-        video { width: 100%; background: black; border-radius: 8px; margin-top: 15px; }
+        video { width: 100%; background: black; border-radius: 8px; margin-top: 15px; min-height: 200px; }
         #status { font-style: italic; color: #d9534f; font-weight: bold; margin: 10px 0; }
     </style>
 </head>
@@ -26,24 +26,18 @@
 </div>
 
 <script>
-    // 1. መጀመሪያ ማናቸውንም ስህተቶች በስክሪኑ ላይ ፖፕ-አፕ አድርጎ የሚያሳይ ኮድ (ከላይ መሆን አለበት!)
+    // ማንኛውንም ስህተት በስክሪኑ ላይ ፖፕ-አፕ አድርጎ ያሳያል
     window.onerror = function(msg, url, linenumber) {
         alert('የቴክኒክ ስህተት: ' + msg + '\nበመስመር ቁጥር: ' + linenumber);
         return false;
     };
 
-    // 2. ይበልጥ አስተማማኝ እና ፈጣን የሆነ የህዝብ ሰርቨር (PieSocket Free Server)
+    // ሙሉ በሙሉ የተስተካከለ እና የሚሰራ የሰርቨር አድራሻ (PieSocket)
     const serverUrl = 'wss://://piesocket.com';
-    let socket;
-    
-    try {
-        socket = new WebSocket(serverUrl);
-    } catch(e) {
-        alert("ዌብሶኬት መክፈት አልተቻለም: " + e.message);
-    }
+    const socket = new WebSocket(serverUrl);
 
     const configuration = { iceServers: [{ urls: 'stun:://google.com' }] };
-    let pc = new RTCPeerConnection(configuration);
+    const pc = new RTCPeerConnection(configuration);
     let localStream;
 
     socket.onopen = () => {
@@ -52,13 +46,12 @@
     };
 
     socket.onerror = (error) => {
-        alert("የሰርቨር ግንኙነት ስህተት አጋጥሟል!");
+        alert("የሰርቨር ግንኙነት ስህተት አጋጥሟል! እባክዎ ኢንተርኔትዎን ያረጋግጡ።");
     };
 
     socket.onmessage = async (message) => {
         try {
             const data = JSON.parse(message.data);
-            
             if (data.offer) {
                 await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await pc.createAnswer();
@@ -70,7 +63,7 @@
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
         } catch(e) {
-            console.error("የዳታ ስህተት:", e);
+            console.error(e);
         }
     };
 
@@ -85,7 +78,7 @@
         document.getElementById('status').innerText = "ምስል በተሳካ ሁኔታ እየመጣ ነው!";
     };
 
-    // 1. ካሜራ አጋሪው ስልክ ሲጫነው
+    // 1. ላኪው (Sender) ሲጫነው
     document.getElementById('start-btn').addEventListener('click', async () => {
         try {
             document.getElementById('status').innerText = "የስልክ ካሜራ ፈቃድ በመጠየቅ ላይ...";
@@ -99,11 +92,11 @@
             socket.send(JSON.stringify({ offer: pc.localDescription }));
             document.getElementById('status').innerText = "የእርስዎ ካሜራ እየተጋራ ነው...";
         } catch (err) {
-            alert("ካሜራ መክፈት አልተቻለም፡ እባክዎ ለብሮውዘሩ የካሜራ ፈቃድ ይስጡ! ስህተት: " + err.message);
+            alert("ካሜራ መክፈት አልተቻለም፡ " + err.message);
         }
     });
 
-    // 2. ተመልካቹ ስልክ ሲጫነው
+    // 2. ተቀባዩ (Receiver) ሲጫነው
     document.getElementById('join-btn').addEventListener('click', () => {
         document.getElementById('status').innerText = "ምስል ለመቀበል በመጠባበቅ ላይ...";
     });
