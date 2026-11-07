@@ -3,178 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>የቀጥታ ስክሪን ማጋሪያ (Screen Share)</title>
-    <!-- PeerJS ላይብረሪ ለቀጥታ ግንኙነት -->
-    <script src="https://unpkg.com"></script>
+    <title>እውነተኛ የቀጥታ ስክሪን ማጋሪያ (Pure WebRTC)</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f0f2f5;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .container {
-            max-width: 500px;
-            width: 100%;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        h2 { color: #1a73e8; margin-top: 0; }
-        .section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #f8f9fa;
-        }
-        input {
-            width: 80%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 16px;
-            text-align: center;
-        }
-        button {
-            background-color: #1a73e8;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.3s;
-        }
-        button:hover { background-color: #1557b0; }
-        #peer-id-display {
-            font-size: 20px;
-            font-weight: bold;
-            color: #202124;
-            background: #e8f0fe;
-            padding: 10px;
-            border-radius: 6px;
-            display: inline-block;
-            margin-top: 5px;
-        }
-        video {
-            width: 100%;
-            max-height: 500px;
-            background: black;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-        .status { color: #5f6368; font-style: italic; margin-top: 10px; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f6f9; text-align: center; color: #333; }
+        .container { max-width: 550px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { color: #1a73e8; }
+        .box { background: #f8f9fa; padding: 15px; margin: 15px 0; border-radius: 8px; border: 1px solid #e0e0e0; text-align: left; }
+        textarea { width: 95%; height: 80px; margin: 5px 0; padding: 8px; font-size: 12px; font-family: monospace; border: 1px solid #ccc; border-radius: 4px; resize: none; }
+        button { background: #1a73e8; color: white; border: none; padding: 10px 15px; font-size: 14px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin: 5px 0; }
+        button:hover { background: #1557b0; }
+        .btn-green { background: #28a745; }
+        .btn-green:hover { background: #218838; }
+        video { width: 100%; max-height: 400px; background: #000; margin-top: 20px; border-radius: 8px; }
+        .step-title { font-weight: bold; color: #202124; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>የስክሪን ማጋሪያ (TeamViewer Like)</h2>
-    
-    <!-- የራስ መታወቂያ ኮድ -->
-    <div class="section">
-        <p>የእርስዎ መታወቂያ ኮድ (የሚያይዎት ሰው ይህንን ኮድ ያስፈልገዋል):</p>
-        <div id="peer-id-display">በማዘጋጀት ላይ...</div>
+    <h2>የብሮውዘር ስክሪን ማጋሪያ (Pure WebRTC)</h2>
+    <p>ይህ ስሪት ምንም ሰርቨር አይጠቀምም፤ በብሮውዘር አብሮ በተሰራው ቴክኖሎጂ ብቻ ይገናኛል።</p>
+
+    <!-- ወገን ሀ፡ ስክሪን የሚያጋራው ሰው -->
+    <div class="box">
+        <div class="step-title">ክፍል 1፡ ስክሪን የሚያጋራው ሰው (Sender)</div>
+        <button class="btn-green" id="start-share-btn">1. ስክሪንህን ምረጥና የጥሪ ኮድ አውጣ</button>
+        <p>የእርስዎ የጥሪ ኮድ (ይህንን ኮፒ አድርገው ለሌላው ሰው ይላኩ)፡</p>
+        <textarea id="offer-sdp" readonly placeholder="የጥሪ ኮድ እዚህ ይፈጠራል..."></textarea>
+        <button id="copy-offer-btn">ኮዱን ኮፒ አድርግ</button>
     </div>
 
-    <!-- ሌላ ሰው ጋር ለመገናኘት -->
-    <div class="section">
-        <p>የሌላኛውን ሰው ስክሪን ለማየት እዚህ ያስገቡ፡</p>
-        <input type="text" id="remote-peer-id" placeholder="የሌላውን ሰው መታወቂያ ያስገቡ">
-        <br>
-        <button id="connect-btn">ስክሪኑን ማየት ጀምር</button>
+    <!-- ወገን ለ፡ ስክሪኑን የሚያየው ሰው -->
+    <div class="box">
+        <div class="step-title">ክፍл 2፡ ስክሪኑን የሚያየው ሰው (Receiver)</div>
+        <p>ከላይ የተላከለትን የጥሪ ኮድ እዚህ ያስገቡ፡</p>
+        <textarea id="input-offer" placeholder="የጓደኛዎን የጥሪ ኮድ እዚህ ያድርጉ..."></textarea>
+        <button id="accept-offer-btn">2. የጥሪ ኮዱን ተቀበልና የምላሽ ኮድ ስራ</button>
+        
+        <p>የእርስዎ የምላሽ ኮድ (ይህንን ኮፒ አድርገው ለስክሪን አጋሪው መልሰው ይላኩ)፡</p>
+        <textarea id="answer-sdp" readonly placeholder="የምላሽ ኮድ እዚህ ይፈጠራል..."></textarea>
+        <button id="copy-answer-btn">የምላሽ ኮዱን ኮፒ አድርግ</button>
     </div>
 
-    <!-- የራስን ስክሪን ለማጋራት -->
-    <div class="section">
-        <button id="share-btn">የራሴን ስክሪን አጋራ</button>
+    <!-- ወገን ሀ ላይ ብቻ የሚሞላ መጨረሻ ደረጃ -->
+    <div class="box">
+        <div class="step-title">ክፍል 3፡ ስክሪን አጋሪው መጨረሻ ላይ የሚሞላው</div>
+        <p>ከጓደኛዎ የተላከውን የምላሽ ኮድ እዚህ ያስገቡ፡</p>
+        <textarea id="input-answer" placeholder="የምላሽ ኮዱን እዚህ ያድርጉ..."></textarea>
+        <button class="btn-green" id="finalize-btn">3. ግንኙነቱን አጠናቅቅ</button>
     </div>
 
-    <div class="status" id="status-text">ዝግጁ</div>
-    
-    <!-- ስክሪኑ የሚታይበት ቪዲዮ ማጫወቻ -->
+    <!-- ቪዲዮ ማሳያ -->
     <video id="remote-video" autoplay playsinline controls></video>
 </div>
 
 <script>
-    // PeerJS ግንኙነት መፍጠር (ነጻ የሲግናል ሰርቨር ይጠቀማል)
-    const peer = new Peer();
-    let localStream = null;
+    // የWebRTC መገናኛ ማቀናበሪያ (ነጻ የጉግል STUN ሰርቨር ለአይፒ አድራሻ መለዋወጫ ብቻ ይጠቀማል)
+    const configuration = { iceServers: [{ urls: 'stun:://google.com' }] };
+    let pc = new RTCPeerConnection(configuration);
+    let localStream;
 
-    const idDisplay = document.getElementById('peer-id-display');
-    const statusText = document.getElementById('status-text');
-    const remoteIdInput = document.getElementById('remote-peer-id');
-    const connectBtn = document.getElementById('connect-btn');
-    const shareBtn = document.getElementById('share-btn');
-    const remoteVideo = document.getElementById('remote-video');
-
-    // የራስ መታወቂያ (ID) ሲመረት
-    peer.on('open', (id) => {
-        idDisplay.innerText = id;
-        statusText.innerText = "ግንኙነት ተመስርቷል። ለመገናኘት ዝግጁ ነዎት።";
-    });
-
-    // 1. ስክሪን ለማጋራት (Share Screen)
-    shareBtn.addEventListener('click', async () => {
+    // 1. ስክሪን አጋሪው መጀመሪያ የሚጫነው
+    document.getElementById('start-share-btn').addEventListener('click', async () => {
         try {
-            statusText.innerText = "የስክሪን ፈቃድ በመጠየቅ ላይ...";
-            // በብሮውዘር ስክሪን ለመቅረጽ የሚጠቅም ኮድ
-            localStream = await navigator.mediaDevices.getDisplayMedia({
-                video: { cursor: "always" },
-                audio: false
-            });
-            statusText.innerText = "ስክሪን በመቀዳት ላይ ነው። አሁን ሌላው ሰው እንዲያይዎት ያድርጉ።";
+            localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             
-            // ስክሪኑ ሲቆም ግንኙነቱን ያቋርጣል
-            localStream.getVideoTracks()[0].addEventListener('ended', () => {
-                statusText.innerText = "ማጋራት ቆሟል።";
-            });
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // የኮዱ መረጃዎች ተሰብስበው ሲያልቁ በቴክስት ኤሪያው ላይ ይወጣል
+            pc.onicecandidate = (event) => {
+                if (!event.candidate) {
+                    document.getElementById('offer-sdp').value = btoa(JSON.stringify(pc.localDescription));
+                }
+            };
         } catch (err) {
-            console.error(err);
-            statusText.innerText = "ስህተት፡ ስክሪን ማጋራት አልተቻለም (ሞባይል ላይ Chrome ይጠቀሙ)";
+            alert("ስህተት፡ ስክሪን መቅረጽ አልተቻለም። እባክዎ በኮምፒውተር ወይም በ Android Chrome ላይ HTTPS ድረገጽ ይጠቀሙ።");
         }
     });
 
-    // ሌላ ሰው ወደ እኛ ሲደውል (የኛን ስክሪን ለማየት ሲሞክር)
-    peer.on('call', (call) => {
-        if (localStream) {
-            statusText.innerText = "ማጋራት ተጀምሯል...";
-            call.answer(localStream); // የእኛን ስክሪን ይልካል
-        } else {
-            alert("እባክዎ መጀመሪያ 'የራሴን ስክሪን አጋራ' የሚለውን ይጫኑ!");
-            call.close();
+    // 2. ተቀባዩ የጥሪ ኮዱን አስገብቶ የምላሽ ኮድ የሚሰራበት
+    document.getElementById('accept-offer-btn').addEventListener('click', async () => {
+        const offerText = document.getElementById('input-offer').value.trim();
+        if (!offerText) return alert("እባክዎ መጀመሪያ የጥሪ ኮዱን ያስገቡ!");
+
+        try {
+            const offerDesc = new RTCSessionDescription(JSON.parse(atob(offerText)));
+            await pc.setRemoteDescription(offerDesc);
+            
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            pc.onicecandidate = (event) => {
+                if (!event.candidate) {
+                    document.getElementById('answer-sdp').value = btoa(JSON.stringify(pc.localDescription));
+                }
+            };
+        } catch (e) {
+            alert("የተሳሳተ ኮድ አስገብተዋል!");
         }
     });
 
-    // 2. የሌላውን ሰው ስክሪን ለማየት (View Screen)
-    connectBtn.addEventListener('click', () => {
-        const remoteId = remoteIdInput.value.trim();
-        if (!remoteId) {
-            alert("እባክዎ መጀመሪያ መታወቂያ ያስገቡ!");
-            return;
+    // የሌላው ሰው ስክሪን ምስል ሲመጣ ቪዲዮው ላይ እንዲታይ ማድረግ
+    pc.ontrack = (event) => {
+        document.getElementById('remote-video').srcObject = event.streams[0];
+    };
+
+    // 3. ስክሪን አጋሪው የምላሽ ኮዱን አስገብቶ ግንኙነቱን የሚያበቃበት
+    document.getElementById('finalize-btn').addEventListener('click', async () => {
+        const answerText = document.getElementById('input-answer').value.trim();
+        if (!answerText) return alert("እባክዎ የምላሽ ኮዱን ያስገቡ!");
+
+        try {
+            const answerDesc = new RTCSessionDescription(JSON.parse(atob(answerText)));
+            await pc.setRemoteDescription(answerDesc);
+        } catch (e) {
+            alert("የተሳሳተ የምላሽ ኮድ!");
         }
+    });
 
-        statusText.innerText = "ከሌላው ወገን ጋር በመገናኘት ላይ...";
-        
-        // ባዶ ሚዲያ በመላክ ጥሪ መጀመር (እነሱ ስክሪናቸውን ይመልሱልናል)
-        const call = peer.call(remoteId, new MediaStream());
-        
-        call.on('stream', (remoteStream) => {
-            statusText.innerText = "ምስል እየመጣ ነው...";
-            remoteVideo.srcObject = remoteStream;
-        });
-
-        call.on('close', () => {
-            statusText.innerText = "ግንኙነቱ ተቋርጧል።";
-        });
+    // የኮፒ ማድረጊያ ቁልፎች ተግባር
+    document.getElementById('copy-offer-btn').addEventListener('click', () => {
+        document.getElementById('offer-sdp').select();
+        document.execCommand('copy');
+        alert('የጥሪ ኮዱ ኮፒ ተደርጓል!');
+    });
+    document.getElementById('copy-answer-btn').addEventListener('click', () => {
+        document.getElementById('answer-sdp').select();
+        document.execCommand('copy');
+        alert('የምላሽ ኮዱ ኮፒ ተደርጓል!');
     });
 </script>
 
