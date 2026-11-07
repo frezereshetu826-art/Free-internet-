@@ -9,75 +9,86 @@
         .box { background: white; padding: 20px; border-radius: 10px; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; margin: 5px 0; font-weight: bold; }
         button:hover { background: #0056b3; }
-        .btn-stop { background: #dc3545; }
-        video { width: 100%; background: black; border-radius: 8px; margin-top: 15px; transform: scaleX(-1); }
-        #status { font-style: italic; color: #666; margin: 10px 0; }
+        video { width: 100%; background: black; border-radius: 8px; margin-top: 15px; }
+        #status { font-style: italic; color: #d9534f; font-weight: bold; margin: 10px 0; }
     </style>
 </head>
 <body>
 
 <div class="box">
     <h2>የሞባይል ላይቭ ማጋሪያ</h2>
-    <div id="status">ሰርቨር በመፈለግ ላይ...</div>
+    <div id="status">ከመስመር ጋር በመገናኘት ላይ...</div>
     
-    <!-- ወገን 1፡ ላኪ (የስልኩን ካሜራ/ማሳያ የሚያጋራ) -->
     <button id="start-btn">1. ካሜራህን አጋራ (Sender)</button>
-    
-    <!-- ወገን 2፡ ተቀባይ (የሌላውን ስልክ የሚያይ) -->
     <button id="join-btn" style="background: #28a745;">2. የጓደኛህን ምስል እይ (Receiver)</button>
     
     <video id="view-video" autoplay playsinline muted></video>
 </div>
 
 <script>
-    // 100% ነጻ እና ክፍት የሆነ የዌብሶኬት ማገናኛ ሰርቨር (ምንም ኮድ መጻፍ አይጠበቅብዎትም)
-    const serverUrl = 'wss://connect.websocket.in/v3/1?api_key=public-demo-key';
-    const socket = new WebSocket(serverUrl);
+    // 1. መጀመሪያ ማናቸውንም ስህተቶች በስክሪኑ ላይ ፖፕ-አፕ አድርጎ የሚያሳይ ኮድ (ከላይ መሆን አለበት!)
+    window.onerror = function(msg, url, linenumber) {
+        alert('የቴክኒክ ስህተት: ' + msg + '\nበመስመር ቁጥር: ' + linenumber);
+        return false;
+    };
+
+    // 2. ይበልጥ አስተማማኝ እና ፈጣን የሆነ የህዝብ ሰርቨር (PieSocket Free Server)
+    const serverUrl = 'wss://://piesocket.com';
+    let socket;
+    
+    try {
+        socket = new WebSocket(serverUrl);
+    } catch(e) {
+        alert("ዌብሶኬት መክፈት አልተቻለም: " + e.message);
+    }
 
     const configuration = { iceServers: [{ urls: 'stun:://google.com' }] };
     let pc = new RTCPeerConnection(configuration);
     let localStream;
 
     socket.onopen = () => {
-        document.getElementById('status').innerText = "ከመስመር ጋር ተገናኝቷል! ለመጠቀም ዝግጁ ነው።";
+        document.getElementById('status').innerText = "ግንኙነት ተመስርቷል! ለመጠቀም ዝግጁ ነው።";
+        document.getElementById('status').style.color = "green";
     };
 
-    // መልዕክቶችን በራሱ መሃል ለመሃል መለዋወጫ ኮድ
+    socket.onerror = (error) => {
+        alert("የሰርቨር ግንኙነት ስህተት አጋጥሟል!");
+    };
+
     socket.onmessage = async (message) => {
-        const data = JSON.parse(message.data);
-        
-        if (data.offer) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            socket.send(JSON.stringify({ answer: pc.localDescription }));
-        } else if (data.answer) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        } else if (data.candidate) {
-            try {
+        try {
+            const data = JSON.parse(message.data);
+            
+            if (data.offer) {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                socket.send(JSON.stringify({ answer: pc.localDescription }));
+            } else if (data.answer) {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            } else if (data.candidate) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-            } catch (e) { console.error(e); }
+            }
+        } catch(e) {
+            console.error("የዳታ ስህተት:", e);
         }
     };
 
-    // አይስ ካንዲዴት በራሱ ለሌላኛው ስልክ ይልካል
     pc.onicecandidate = (event) => {
-        if (event.candidate) {
+        if (event.candidate && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ candidate: event.candidate }));
         }
     };
 
-    // ምስሉ ሲመጣ ቪዲዮው ላይ ያሳያል
     pc.ontrack = (event) => {
         document.getElementById('view-video').srcObject = event.streams[0];
-        document.getElementById('status').innerText = "በተሳካ ሁኔታ እየታየ ነው!";
+        document.getElementById('status').innerText = "ምስል በተሳካ ሁኔታ እየመጣ ነው!";
     };
 
     // 1. ካሜራ አጋሪው ስልክ ሲጫነው
     document.getElementById('start-btn').addEventListener('click', async () => {
         try {
-            document.getElementById('status').innerText = "የስልክ ካሜራ በመክፈት ላይ...";
-            // ለሞባይል ብሮውዘር ፍጹም የሚሰራው የቪዲዮ መቅረጫ
+            document.getElementById('status').innerText = "የስልክ ካሜራ ፈቃድ በመጠየቅ ላይ...";
             localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
             document.getElementById('view-video').srcObject = localStream;
             
@@ -86,21 +97,17 @@
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             socket.send(JSON.stringify({ offer: pc.localDescription }));
-            document.getElementById('status').innerText = "የእርስዎ ካሜራ እየተጋራ ነው... ለሌላኛው ሰው ንገሩት።";
+            document.getElementById('status').innerText = "የእርስዎ ካሜራ እየተጋራ ነው...";
         } catch (err) {
-            alert("ካሜራ መክፈት አልተቻለም፡ እባክዎ የካሜራ ፍቃድ ይስጡ።");
+            alert("ካሜራ መክፈት አልተቻለም፡ እባክዎ ለብሮውዘሩ የካሜራ ፈቃድ ይስጡ! ስህተት: " + err.message);
         }
     });
 
     // 2. ተመልካቹ ስልክ ሲጫነው
     document.getElementById('join-btn').addEventListener('click', () => {
         document.getElementById('status').innerText = "ምስል ለመቀበል በመጠባበቅ ላይ...";
-        // የዌብሶኬት ሰርቨሩ በራሱ ግንኙነቱን ያጠናቅቃል
     });
 </script>
-    window.onerror = function(msg, url, linenumber) {
-    alert('የቴክኒክ ስህተት: ' + msg + '\nመስመር: ' + linenumber);
-    return true;
-};
+
 </body>
 </html>
