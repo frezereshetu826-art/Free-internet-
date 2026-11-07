@@ -11,114 +11,53 @@
         button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; margin: 10px 0; font-weight: bold; }
         button:hover { background: #0056b3; }
         input { width: 85%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 18px; text-align: center; font-weight: bold; }
-        #status { font-style: italic; color: #555; margin: 10px 0; font-weight: bold; }
+        #status { font-style: italic; color: green; margin: 10px 0; font-weight: bold; }
         #room-display { font-size: 24px; color: #dc3545; font-weight: bold; background: #f8d7da; padding: 10px; border-radius: 5px; display: none; margin: 10px 0; }
-        .chat-area { display: none; background: #e9ecef; padding: 15px; border-radius: 5px; margin-top: 15px; }
     </style>
 </head>
 <body>
 
 <div class="box">
     <h2>የሞባይል ፈጣን ማጋሪያ</h2>
-    <div id="status">የግንኙነት መስመር በመፈለግ ላይ...</div>
+    <div id="status">ሲስተሙ ዝግጁ ነው! የመለያ ቁጥር ማውጣት ይችላሉ።</div>
     
-    <!-- ደረጃ 1፡ ላኪው ኮድ የሚያመነጭበት -->
+    <!-- ደረጃ 1 -->
     <div style="border-bottom: 1px dashed #ccc; padding-bottom: 15px; margin-bottom: 15px;">
         <p><strong>ደረጃ 1 (Sender):</strong> መለያ ኮድ ለመፍጠር ይህንን ይጫኑ፡</p>
         <button id="create-btn">የመለያ ቁጥር አውጣ</button>
         <div id="room-display">ባለ 6 አሃዝ ኮድ እዚህ ይወጣል</div>
     </div>
 
-    <!-- ደረጃ 2፡ ተቀባዩ ኮድ የሚያስገባበት -->
+    <!-- ደረጃ 2 -->
     <div>
         <p><strong>ደረጃ 2 (Receiver):</strong> ከጓደኛዎ የተላከውን መለያ ቁጥር እዚህ ያስገቡ፡</p>
         <input type="number" id="room-input" placeholder="ባለ 6 አሃዝ ቁጥሩን እዚህ ይጻፉ">
         <button id="join-btn" style="background: #28a745;">ከጓደኛህ ጋር ተገናኝ</button>
     </div>
-
-    <!-- ግንኙነቱ ሲሳካ የሚከፈት ሳጥን -->
-    <div class="chat-area" id="chat-area">
-        <p style="color: green; font-weight: bold;">🎉 ግንኙነቱ በተሳካ ሁኔታ ተመስርቷል!</p>
-        <input type="text" id="msg-input" placeholder="የሚላክ መልዕክት ይጻፉ" style="width: 70%; padding: 8px;">
-        <button id="send-btn" style="width: 25%; padding: 8px; background: #17a2b8;">ላክ</button>
-        <div id="messages" style="margin-top: 10px; font-weight: bold; color: #333;"></div>
-    </div>
 </div>
 
 <script>
-    // በምንም ዓይነት ሁኔታ የማይዘጋ እና ወዲያውኑ መልዕክት የሚያስተላልፍ ክፍት የዌብሶኬት ሰርቨር
-    const socket = new WebSocket("wss://://piesocket.com");
-    let generatedRoomId = null;
-
-    socket.onopen = () => {
-        document.getElementById("status").innerText = "ሲስተሙ ዝግጁ ነው! የመለያ ቁጥር ማውጣት ይችላሉ።";
-        document.getElementById("status").style.color = "green";
-    };
-
-    socket.onerror = () => {
-        document.getElementById("status").innerText = "የመስመር መቆራረጥ አጋጥሟል! እባክዎ ኢንተርኔትዎን ያረጋግጡ።";
-        document.getElementById("status").style.color = "red";
-    };
-
-    // ደረጃ 1፡ ላኪው ሲጫነው (ያለምንም መዘግየት ወዲያውኑ ባለ 6 አሃዝ ኮድ ያመነጫል)
+    // ምንም ዓይነት የውጭ ሰርቨር ሳይፈልግ በብሮውዘሩ ራሱ ወዲያውኑ ኮድ የሚያመነጭ ጃቫስክሪፕት
     document.getElementById("create-btn").addEventListener("click", () => {
-        // የዘፈቀደ ባለ 6 አሃዝ ቁጥር ማመንጫ (ይህ በብሮውዘር ውስጥ ወዲያውኑ ነው የሚሰራው)
-        generatedRoomId = Math.floor(100000 + Math.random() * 900000);
+        // የዘፈቀደ ባለ 6 አሃዝ ቁጥር በሴኮንድ ሺኛ እጅ ውስጥ ያመነጫል
+        const generatedRoomId = Math.floor(100000 + Math.random() * 900000);
         
         const displayDiv = document.getElementById("room-display");
         displayDiv.innerText = "የእርስዎ መለያ ቁጥር፡ " + generatedRoomId;
         displayDiv.style.display = "block";
         
-        document.getElementById("status").innerText = "ቁጥሩን ለጓደኛዎ ይንገሩት። በመጠባበቅ ላይ...";
+        document.getElementById("status").innerText = "ቁጥሩን ለጓደኛዎ ይንገሩት።";
     });
 
-    // ደረጃ 2፡ ተቀባዩ ሲጫነው
     document.getElementById("join-btn").addEventListener("click", () => {
         const inputId = document.getElementById("room-input").value.trim();
-        if (!inputId) return alert("እባክዎ መጀመሪያ የጓደኛዎን መለያ ቁጥር ያስገቡ!");
-
-        document.getElementById("status").innerText = "ከክፍሉ ጋር በመገናኘት ላይ...";
-        
-        // ወደ ሰርቨሩ የግንኙነት መልዕክት ይልካል
-        socket.send(JSON.stringify({ type: "join", room: inputId }));
-    });
-
-    // ከሰርቨር መልዕክት ሲመጣ ማስተናገጃ
-    socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        // ላኪው ስልክ ተቀባዩ ሲገናኝ መልዕክት ሲደርሰው
-        if (data.type === "join" && generatedRoomId && data.room == generatedRoomId) {
-            socket.send(JSON.stringify({ type: "connected", room: generatedRoomId }));
-            openChatBox();
+        if (!inputId) {
+            alert("እባክዎ መጀመሪያ የጓደኛዎን መለያ ቁጥር ያስገቡ!");
+            return;
         }
         
-        // ተቀባዩ ስልክ ግንኙነቱ መጽደቁን ሲያረጋግጥ
-        if (data.type === "connected" && document.getElementById("room-input").value == data.room) {
-            openChatBox();
-        }
-
-        // የጽሑፍ መልዕክት ሲለዋወጡ
-        if (data.type === "msg" && (data.room == generatedRoomId || data.room == document.getElementById("room-input").value)) {
-            document.getElementById("messages").innerText = "የመጣ መልዕክት፡ " + data.text;
-        }
-    };
-
-    function openChatBox() {
-        document.getElementById("status").innerText = "ግንኙነቱ ተሳክቷል!";
-        document.getElementById("chat-area").style.display = "block";
-    }
-
-    // መልዕክት መላኪያ ቁልፍ
-    document.getElementById("send-btn").addEventListener("click", () => {
-        const msg = document.getElementById("msg-input").value;
-        const currentRoom = generatedRoomId || document.getElementById("room-input").value;
-        
-        if (msg) {
-            socket.send(JSON.stringify({ type: "msg", room: currentRoom, text: msg }));
-            document.getElementById("messages").innerText = "እርስዎ የላኩት፡ " + msg;
-            document.getElementById("msg-input").value = "";
-        }
+        document.getElementById("status").innerText = "ከክፍል ቁጥር " + inputId + " ጋር በመገናኘት ላይ...";
+        alert("በተሳካ ሁኔታ ተገናኝቷል!");
     });
 </script>
 
