@@ -1,230 +1,182 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="am">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Consent Screen Sharing</title>
-  <script src="https://unpkg.com"></script>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 700px;
-      margin: 30px auto;
-      padding: 16px;
-      background: #f4f4f4;
-    }
-
-    section {
-      background: white;
-      padding: 18px;
-      margin-bottom: 20px;
-      border-radius: 10px;
-    }
-
-    input, button {
-      width: 100%;
-      padding: 12px;
-      margin: 7px 0;
-      box-sizing: border-box;
-      font-size: 16px;
-    }
-
-    button {
-      cursor: pointer;
-      background: #1769aa;
-      color: white;
-      border: 0;
-      border-radius: 5px;
-    }
-
-    button:disabled {
-      background: #999;
-    }
-
-    video {
-      width: 100%;
-      background: black;
-      margin-top: 15px;
-      border-radius: 8px;
-    }
-
-    .notice {
-      color: #555;
-      font-size: 14px;
-    }
-
-    #status {
-      font-weight: bold;
-      margin-top: 12px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>የቀጥታ ስክሪን ማጋሪያ (Screen Share)</title>
+    <!-- PeerJS ላይብረሪ ለቀጥታ ግንኙነት -->
+    <script src="https://unpkg.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h2 { color: #1a73e8; margin-top: 0; }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        input {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            text-align: center;
+        }
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #1557b0; }
+        #peer-id-display {
+            font-size: 20px;
+            font-weight: bold;
+            color: #202124;
+            background: #e8f0fe;
+            padding: 10px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+        video {
+            width: 100%;
+            max-height: 500px;
+            background: black;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .status { color: #5f6368; font-style: italic; margin-top: 10px; }
+    </style>
 </head>
-
 <body>
-  <h1>Screen Sharing</h1>
 
-  <p class="notice">
-    Screen sharing starts only after the owner presses the button and approves
-    the browser permission request.
-  </p>
+<div class="container">
+    <h2>የስክሪን ማጋሪያ (TeamViewer Like)</h2>
+    
+    <!-- የራስ መታወቂያ ኮድ -->
+    <div class="section">
+        <p>የእርስዎ መታወቂያ ኮድ (የሚያይዎት ሰው ይህንን ኮድ ያስፈልገዋል):</p>
+        <div id="peer-id-display">በማዘጋጀት ላይ...</div>
+    </div>
 
-  <section>
-    <h2>Share my screen</h2>
+    <!-- ሌላ ሰው ጋር ለመገናኘት -->
+    <div class="section">
+        <p>የሌላኛውን ሰው ስክሪን ለማየት እዚህ ያስገቡ፡</p>
+        <input type="text" id="remote-peer-id" placeholder="የሌላውን ሰው መታወቂያ ያስገቡ">
+        <br>
+        <button id="connect-btn">ስክሪኑን ማየት ጀምር</button>
+    </div>
 
-    <label>Session passcode:</label>
-    <input id="hostPassword" type="password" placeholder="Create a passcode">
+    <!-- የራስን ስክሪን ለማጋራት -->
+    <div class="section">
+        <button id="share-btn">የራሴን ስክሪን አጋራ</button>
+    </div>
 
-    <button id="startButton">Start sharing</button>
+    <div class="status" id="status-text">ዝግጁ</div>
+    
+    <!-- ስክሪኑ የሚታይበት ቪዲዮ ማጫወቻ -->
+    <video id="remote-video" autoplay playsinline controls></video>
+</div>
 
-    <p>Your session ID:</p>
-    <input id="sessionId" readonly placeholder="Your ID will appear here">
+<script>
+    // PeerJS ግንኙነት መፍጠር (ነጻ የሲግናል ሰርቨር ይጠቀማል)
+    const peer = new Peer();
+    let localStream = null;
 
-    <video id="preview" autoplay muted playsinline></video>
-  </section>
+    const idDisplay = document.getElementById('peer-id-display');
+    const statusText = document.getElementById('status-text');
+    const remoteIdInput = document.getElementById('remote-peer-id');
+    const connectBtn = document.getElementById('connect-btn');
+    const shareBtn = document.getElementById('share-btn');
+    const remoteVideo = document.getElementById('remote-video');
 
-  <section>
-    <h2>View a shared screen</h2>
+    // የራስ መታወቂያ (ID) ሲመረት
+    peer.on('open', (id) => {
+        idDisplay.innerText = id;
+        statusText.innerText = "ግንኙነት ተመስርቷል። ለመገናኘት ዝግጁ ነዎት።";
+    });
 
-    <label>Session ID:</label>
-    <input id="viewerSessionId" placeholder="Enter the sharer's ID">
+    // 1. ስክሪን ለማጋራት (Share Screen)
+    shareBtn.addEventListener('click', async () => {
+        try {
+            statusText.innerText = "የስክሪን ፈቃድ በመጠየቅ ላይ...";
+            // በብሮውዘር ስክሪን ለመቅረጽ የሚጠቅም ኮድ
+            localStream = await navigator.mediaDevices.getDisplayMedia({
+                video: { cursor: "always" },
+                audio: false
+            });
+            statusText.innerText = "ስክሪን በመቀዳት ላይ ነው። አሁን ሌላው ሰው እንዲያይዎት ያድርጉ።";
+            
+            // ስክሪኑ ሲቆም ግንኙነቱን ያቋርጣል
+            localStream.getVideoTracks()[0].addEventListener('ended', () => {
+                statusText.innerText = "ማጋራት ቆሟል።";
+            });
+        } catch (err) {
+            console.error(err);
+            statusText.innerText = "ስህተት፡ ስክሪን ማጋራት አልተቻለም (ሞባይል ላይ Chrome ይጠቀሙ)";
+        }
+    });
 
-    <label>Passcode:</label>
-    <input id="viewerPassword" type="password" placeholder="Enter passcode">
+    // ሌላ ሰው ወደ እኛ ሲደውል (የኛን ስክሪን ለማየት ሲሞክር)
+    peer.on('call', (call) => {
+        if (localStream) {
+            statusText.innerText = "ማጋራት ተጀምሯል...";
+            call.answer(localStream); // የእኛን ስክሪን ይልካል
+        } else {
+            alert("እባክዎ መጀመሪያ 'የራሴን ስክሪን አጋራ' የሚለውን ይጫኑ!");
+            call.close();
+        }
+    });
 
-    <button id="connectButton">Connect</button>
+    // 2. የሌላውን ሰው ስክሪን ለማየት (View Screen)
+    connectBtn.addEventListener('click', () => {
+        const remoteId = remoteIdInput.value.trim();
+        if (!remoteId) {
+            alert("እባክዎ መጀመሪያ መታወቂያ ያስገቡ!");
+            return;
+        }
 
-    <video id="remoteVideo" autoplay playsinline controls></video>
-  </section>
-
-  <p id="status"></p>
-
-  <script>
-    let peer;
-    let screenStream;
-    let hostPassword;
-
-    const statusText = document.getElementById("status");
-    const sessionId = document.getElementById("sessionId");
-    const preview = document.getElementById("preview");
-    const remoteVideo = document.getElementById("remoteVideo");
-
-    function status(message) {
-      statusText.textContent = message;
-    }
-
-    // Host: start screen sharing
-    document.getElementById("startButton").onclick = async () => {
-      hostPassword = document.getElementById("hostPassword").value;
-
-      if (hostPassword.length < 4) {
-        alert("Use a passcode with at least 4 characters.");
-        return;
-      }
-
-      try {
-        // This displays the browser's official screen-sharing permission prompt.
-        screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
+        statusText.innerText = "ከሌላው ወገን ጋር በመገናኘት ላይ...";
+        
+        // ባዶ ሚዲያ በመላክ ጥሪ መጀመር (እነሱ ስክሪናቸውን ይመልሱልናል)
+        const call = peer.call(remoteId, new MediaStream());
+        
+        call.on('stream', (remoteStream) => {
+            statusText.innerText = "ምስል እየመጣ ነው...";
+            remoteVideo.srcObject = remoteStream;
         });
 
-        preview.srcObject = screenStream;
-
-        // Create a temporary peer session
-        peer = new Peer();
-
-        peer.on("open", id => {
-          sessionId.value = id;
-          status("Screen sharing is active. Send the session ID and passcode to the viewer.");
+        call.on('close', () => {
+            statusText.innerText = "ግንኙነቱ ተቋርጧል።";
         });
+    });
+</script>
 
-        peer.on("connection", connection => {
-          connection.on("data", data => {
-            if (
-              data &&
-              data.type === "password" &&
-              data.value === hostPassword
-            ) {
-              status("Viewer authenticated. Sending your screen.");
-
-const call = peer.call(connection.peer, screenStream);
-
-              call.on("close", () => {
-                status("Viewer disconnected.");
-              });
-            } else {
-              connection.send({
-                type: "error",
-                message: "Incorrect passcode."
-              });
-            }
-          });
-        });
-
-        // Stop sharing if the user stops it from the browser's sharing control
-        screenStream.getVideoTracks()[0].onended = () => {
-          status("Screen sharing stopped.");
-          if (peer) peer.destroy();
-        };
-
-      } catch (error) {
-        status("Screen sharing was cancelled or is not supported.");
-        console.error(error);
-      }
-    };
-
-    // Viewer: connect to the host
-    document.getElementById("connectButton").onclick = () => {
-      const hostId = document.getElementById("viewerSessionId").value.trim();
-      const password = document.getElementById("viewerPassword").value;
-
-      if (!hostId || !password) {
-        alert("Enter the session ID and passcode.");
-        return;
-      }
-
-      peer = new Peer();
-
-      peer.on("open", () => {
-        const connection = peer.connect(hostId);
-
-        connection.on("open", () => {
-          connection.send({
-            type: "password",
-            value: password
-          });
-
-          status("Authentication request sent.");
-        });
-
-        connection.on("data", data => {
-          if (data && data.type === "error") {
-            status(data.message);
-          }
-        });
-
-        peer.on("call", call => {
-          call.answer();
-
-          call.on("stream", stream => {
-            remoteVideo.srcObject = stream;
-            status("Connected. You are viewing the shared screen.");
-          });
-
-          call.on("close", () => {
-            status("Screen sharing ended.");
-            remoteVideo.srcObject = null;
-          });
-        });
-      });
-
-      peer.on("error", error => {
-        status("Connection error: " + error.type);
-        console.error(error);
-      });
-    };
-  </script>
 </body>
 </html>
-
