@@ -1,132 +1,181 @@
 <!DOCTYPE html>
-<html lang="am">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>የሞባይል ላይቭ ካሜራ ማጋሪያ</title>
-    <!-- የጉግል ኔትወርክ ላይብረሪዎች (Firebase) -->
-    <script src="https://gstatic.com"></script>
-    <script src="https://gstatic.com"></script>
+    <title>Web Remote Share</title>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 20px; background: #f0f2f5; text-align: center; }
-        .box { background: white; padding: 20px; border-radius: 10px; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; margin: 5px 0; font-weight: bold; }
-        button:hover { background: #0056b3; }
-        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; text-align: center; }
-        video { width: 100%; background: black; border-radius: 8px; margin-top: 15px; min-height: 200px; }
-        #status { font-style: italic; color: green; font-weight: bold; margin: 10px 0; }
+        :root { --primary: #0076d6; --danger: #dc3545; --success: #28a745; --dark: #222; }
+        body { font-family: sans-serif; margin: 0; padding: 15px; background: #f0f2f5; }
+        .app-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 450px; margin: 20px auto; }
+        h2 { text-align: center; color: var(--primary); margin-top: 0; }
+        #error-msg { display: none; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
+        .section { border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #fafafa; }
+        .section-title { font-weight: bold; margin-bottom: 10px; color: #555; }
+        .code-display { font-size: 24px; font-weight: bold; letter-spacing: 4px; color: var(--primary); text-align: center; padding: 10px; background: #e6f2fc; border-radius: 6px; margin-top: 5px; }
+        input[type="text"] { width: 100%; padding: 12px; font-size: 18px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; text-align: center; letter-spacing: 3px; }
+        button { width: 100%; padding: 12px; font-size: 16px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; color: white; margin-top: 10px; }
+        .btn-share { background: var(--primary); }
+        .btn-view { background: var(--success); }
+        #btn-stop { background: var(--danger); display: none; }
+        .video-box { width: 100%; background: var(--dark); border-radius: 8px; overflow: hidden; aspect-ratio: 9 / 16; display: flex; align-items: center; justify-content: center; margin-top: 15px; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+        .status { text-align: center; font-weight: 500; margin: 10px 0; color: #666; }
     </style>
 </head>
 <body>
-
-<div class="box">
-    <h2>የሞባይል ካሜራ ማጋሪያ</h2>
-    <div id="status">ለመገናኘት ዝግጁ ነው!</div>
-    
-    <!-- የግንኙነት ክፍል መፍጠሪያ -->
-    <input type="number" id="room-input" placeholder="ባለ 5 አሃዝ መለያ ቁጥር ይፍጠሩ (ምሳሌ፡ 77777)">
-    
-    <button id="start-btn">1. ካሜራህን ክፈትና አጋራ (Sender)</button>
-    <button id="join-btn" style="background: #28a745;">2. የጓደኛህን ካሜራ እይ (Receiver)</button>
-    
-    <video id="view-video" autoplay playsinline muted controls></video>
-</div>
-
-<script>
-    // የጉግል ማገናኛ ዳታቤዝ (በኢትዮጵያ ውስጥ ይሰራል)
-    const firebaseConfig = { databaseURL: "https://firebaseio.com" };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // በኢትዮጵያ የማይታገዱ የዓለም አቀፍ STUN ሰርቨሮች
-    const configuration = {
-        iceServers: [
-            { urls: "stun:://mozilla.com" },
-            { urls: "stun:stun.stunprotocol.org:3478" },
-            { urls: "stun:stun.mit.edu:3478" }
-        ]
-    };
-    
-    let pc = new RTCPeerConnection(configuration);
-    let localStream;
-    let roomRef;
-
-    // 1. ካሜራ አጋሪው (Sender)
-    document.getElementById("start-btn").addEventListener("click", async () => {
-        const roomId = document.getElementById("room-input").value.trim();
-        if(!roomId) return alert("እባክዎ መጀመሪያ ባለ 5 አሃዝ መለያ ቁጥር ያስገቡ!");
+    <div class="app-card">
+        <h2>Web Remote Share</h2>
+        <div id="error-msg"></div>
+        <div id="status" class="status">Status: Connecting...</div>
         
-        roomRef = db.ref('rooms/' + roomId);
-        document.getElementById("status").innerText = "የስልክ ካሜራ ፈቃድ በመጠየቅ ላይ...";
+        <div id="setup-panel">
+            <div class="section">
+                <div class="section-title">Allow Remote Control</div>
+                <button id="btn-get-code" class="btn-share">Generate Code & Share</button>
+                <div id="code-container" style="display: none;">
+                    <div id="my-code" class="code-display">----</div>
+                </div>
+            </div>
+            <div class="section">
+                <div class="section-title">Control Remote Device</div>
+                <input type="text" id="partner-code" placeholder="Enter Code" maxlength="4">
+                <button id="btn-connect-partner" class="btn-view">Connect to Partner</button>
+            </div>
+        </div>
+        <button id="btn-stop">Disconnect Session</button>
+        <div class="video-box"><video id="remote-video" autoplay playsinline></video></div>
+    </div>
 
-        try {
-            // ካሜራውን መክፈት
-            localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-            document.getElementById("view-video").srcObject = localStream;
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    <script>
+        const socket = io();
+        const errorMsg = document.getElementById('error-msg');
+        const statusDiv = document.getElementById('status');
+        const setupPanel = document.getElementById('setup-panel');
+        const btnGetCode = document.getElementById('btn-get-code');
+        const codeContainer = document.getElementById('code-container');
+        const myCodeDiv = document.getElementById('my-code');
+        const partnerCodeInput = document.getElementById('partner-code');
+        const btnConnectPartner = document.getElementById('btn-connect-partner');
+        const btnStop = document.getElementById('btn-stop');
+        const remoteVideo = document.getElementById('remote-video');
 
-            pc.onicecandidate = (event) => {
-                if (event.candidate) roomRef.child('senderCandidates').push(event.candidate.toJSON());
-            };
+        let localStream = null, peerConnection = null, myAssignedRoom = null, role = null; 
+        const rtcConfig = { iceServers: [{ urls: 'stun:://google.com' }] };
 
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            await roomRef.set({ offer: { type: offer.type, sdp: offer.sdp } });
-            
-            document.getElementById("status").innerText = "እየተጋራ ነው! ለጓደኛዎ ቁጥሩን ይንገሩት።";
+        function showError(text) { errorMsg.textContent = text; errorMsg.style.display = 'block'; }
+        function clearError() { errorMsg.textContent = ''; errorMsg.style.display = 'none'; }
+        function updateStatus(text) { statusDiv.textContent = `Status: ${text}`; }
 
-            // ከተቀባዩ ምላሽ ሲመጣ በራሱ ያገናኛል (ምንም ኮፒ ፔስት የለም)
-            roomRef.on('value', async (snapshot) => {
-                const data = snapshot.val();
-                if (data && data.answer && !pc.currentRemoteDescription) {
-                    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                    document.getElementById("status").innerText = "ግንኙነቱ ተሳክቷል!";
-                }
-            });
+        socket.on('connect', () => updateStatus('Connected to server. Ready.'));
+        socket.on('connect_error', () => showError('Server Connection Error.'));
 
-            roomRef.child('receiverCandidates').on('child_added', snapshot => {
-                pc.addIceCandidate(new RTCIceCandidate(snapshot.val()));
-            });
-
-        } catch (err) {
-            alert("ካሜራ መክፈት አልተቻለም፡ " + err.message);
-        }
-    });
-
-    // 2. ተመልካቹ (Receiver)
-    document.getElementById("join-btn").addEventListener("click", async () => {
-        const roomId = document.getElementById("room-input").value.trim();
-        if(!roomId) return alert("እባክዎ መጀመሪያ የጓደኛዎን መለያ ቁጥር ያስገቡ!");
-
-        roomRef = db.ref('rooms/' + roomId);
-        document.getElementById("status").innerText = "ምስል ለመቀበል በመገናኘት ላይ...";
-
-        pc.onicecandidate = (event) => {
-            if (event.candidate) roomRef.child('receiverCandidates').push(event.candidate.toJSON());
-        };
-
-        // የሌላውን ሰው ካሜራ ምስል መቀበያ
-        pc.ontrack = (event) => {
-            document.getElementById("view-video").srcObject = event.streams[0];
-            document.getElementById("status").innerText = "ምስል በተሳካ ሁኔታ እየመጣ ነው!";
-        };
-
-        roomRef.child('senderCandidates').on('child_added', snapshot => {
-            pc.addIceCandidate(new RTCIceCandidate(snapshot.val()));
+        btnGetCode.addEventListener('click', async () => {
+            clearError();
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                showError('Browser Error: Screen capture not supported.');
+                return;
+            }
+            try {
+                localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+                role = 'sharer';
+                socket.emit('create-room');
+                btnGetCode.disabled = true;
+                localStream.getVideoTracks().onended = () => terminateSession();
+            } catch (err) { showError(`Capture Error: ${err.message}`); }
         });
 
-        const snapshot = await roomRef.once('value');
-        const data = snapshot.val();
-        if (data && data.offer) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            await roomRef.update({ answer: { type: answer.type, sdp: answer.sdp } });
-        } else {
-            alert("ይህ መለያ ቁጥር አልተገኘም! እባክዎ ላኪው መጀመሪያ ማጋራቱን ያረጋግጡ።");
-        }
-    });
-</script>
+        socket.on('room-created', (roomCode) => {
+            myAssignedRoom = roomCode;
+            myCodeDiv.textContent = roomCode;
+            codeContainer.style.display = 'block';
+            updateStatus('Waiting for partner...');
+            btnStop.style.display = 'block';
+        });
 
+        btnConnectPartner.addEventListener('click', () => {
+            clearError();
+            const targetCode = partnerCodeInput.value.trim();
+            if (targetCode.length !== 4) { showError('Enter valid 4-digit code.'); return; }
+            role = 'viewer';
+            myAssignedRoom = targetCode;
+            updateStatus('Joining room...');
+            socket.emit('join-room', targetCode);
+        });
+
+        socket.on('room-error', (msg) => { showError(msg); updateStatus('Idle'); role = null; });
+
+        socket.on('start-webrtc', async () => {
+            setupPanel.style.display = 'none';
+            btnStop.style.display = 'block';
+            updateStatus('Connecting peers...');
+            initiatePeerConnection();
+
+            if (role === 'viewer') {
+                try {
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+                    socket.emit('relay-signal', { room: myAssignedRoom, sdp: peerConnection.localDescription });
+                } catch (err) { showError(`Offer Error: ${err.message}`); }
+            }
+        });
+
+        socket.on('relay-signal', async (data) => {
+            try {
+                if (!peerConnection) initiatePeerConnection();
+                if (data.sdp) {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                    if (peerConnection.remoteDescription.type === 'offer') {
+                        const answer = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answer);
+                        socket.emit('relay-signal', { room: myAssignedRoom, sdp: peerConnection.localDescription });
+                    }
+                } else if (data.ice) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.ice));
+                }
+            } catch (err) { showError(`Signal Error: ${err.message}`); }
+        });
+
+        function initiatePeerConnection() {
+            peerConnection = new RTCPeerConnection(rtcConfig);
+            peerConnection.onicecandidate = (e) => {
+                if (e.candidate) socket.emit('relay-signal', { room: myAssignedRoom, ice: e.candidate });
+            };
+            peerConnection.onconnectionstatechange = () => {
+                updateStatus(`Connection: ${peerConnection.connectionState}`);
+                if (['failed', 'disconnected'].includes(peerConnection.connectionState)) {
+                    showError('Session lost.');
+                    terminateSession();
+                }
+            };
+            if (role === 'sharer' && localStream) {
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            }
+            if (role === 'viewer') {
+                peerConnection.ontrack = (e) => { remoteVideo.srcObject = e.streams; };
+            }
+        }
+
+        btnStop.addEventListener('click', () => {
+            socket.emit('leave-room', myAssignedRoom);
+            terminateSession();
+        });
+
+        socket.on('peer-left', () => { showError('Partner disconnected.'); terminateSession(); });
+
+        function terminateSession() {
+            if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+            if (peerConnection) { peerConnection.close(); peerConnection = null; }
+            remoteVideo.srcObject = null;
+            setupPanel.style.display = 'block';
+            btnStop.style.display = 'none';
+            codeContainer.style.display = 'none';
+            btnGetCode.disabled = false;
+            partnerCodeInput.value = '';
+            updateStatus('Ready');
+            role = null; myAssignedRoom = null;
+        }
+    </script>
 </body>
 </html>
