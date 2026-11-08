@@ -78,7 +78,16 @@
                 return;
             }
             try {
-                localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+                // Strict display preferences to force OS picker instead of camera
+                const displayOptions = {
+                    video: {
+                        displaySurface: "monitor",
+                        logicalSurface: true
+                    },
+                    audio: false
+                };
+
+                localStream = await navigator.mediaDevices.getDisplayMedia(displayOptions);
                 role = 'sharer';
                 socket.emit('create-room');
                 btnGetCode.disabled = true;
